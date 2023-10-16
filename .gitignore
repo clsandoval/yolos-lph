@@ -1,2 +1,3 @@
 data/*
 balloon_dataset/*
+__pycache__/*
