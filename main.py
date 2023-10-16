@@ -7,14 +7,14 @@ from PIL import Image, ImageDraw
 from transformers import AutoFeatureExtractor
 
 
+# create dataloaders
 first_class_index = 0
-# %% create dataloaders
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
     def __init__(self, img_folder, feature_extractor, train=True):
         ann_file = os.path.join(
-            img_folder, "custom_train.json" if train else "custom_val.json"
+            img_folder, "data/coco_train.json" if train else "data/coco_val.json"
         )
         super(CocoDetection, self).__init__(img_folder, ann_file)
         self.feature_extractor = feature_extractor
@@ -38,11 +38,9 @@ class CocoDetection(torchvision.datasets.CocoDetection):
 feature_extractor = AutoFeatureExtractor.from_pretrained(
     "hustvl/yolos-small", size=512, max_size=864
 )
-train_dataset = CocoDetection(
-    img_folder="/content/balloon/train", feature_extractor=feature_extractor
-)
+train_dataset = CocoDetection(img_folder="", feature_extractor=feature_extractor)
 val_dataset = CocoDetection(
-    img_folder="/content/balloon/val", feature_extractor=feature_extractor, train=False
+    img_folder="", feature_extractor=feature_extractor, train=False
 )
 
 # %% visualize sample images
@@ -53,7 +51,7 @@ image_ids = train_dataset.coco.getImgIds()
 image_id = image_ids[np.random.randint(0, len(image_ids))]
 print("Image n°{}".format(image_id))
 image = train_dataset.coco.loadImgs(image_id)[0]
-image = Image.open(os.path.join("/content/balloon/train", image["file_name"]))
+image = Image.open(image["file_name"])
 
 annotations = train_dataset.coco.imgToAnns[image_id]
 draw = ImageDraw.Draw(image, "RGBA")
@@ -163,9 +161,7 @@ outputs = model(pixel_values=batch["pixel_values"])
 
 from pytorch_lightning import Trainer
 
-trainer = Trainer(
-    gpus=1, max_steps=2000, gradient_clip_val=0.1, accumulate_grad_batches=4
-)
+trainer = Trainer(max_steps=2000, gradient_clip_val=0.1, accumulate_grad_batches=4)
 trainer.fit(model)
 
 # %% get ground truths

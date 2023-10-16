@@ -40,6 +40,7 @@ def create_annotation_info(
         "id": annotation_id,
         "image_id": image_id,
         "category_id": category_id,
+        "area": bounding_box[2] * bounding_box[3],
         "iscrowd": is_crowd,
         "bbox": bounding_box,  # [x,y,width,height]
     }
@@ -153,12 +154,12 @@ def convert(
 
 
 if __name__ == "__main__":
-    input_dir = "data/unboxed/*.png"
+    input_dir = "data/val/*.png"
     categories = ["plate"]
 
     super_categories = ["N/A"]
 
-    output_json = "data/coco_train.json"
+    output_json = "data/coco_val.json"
 
     coco_dict = convert(
         imgdir=input_dir,
