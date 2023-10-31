@@ -4,6 +4,7 @@ import convert as via2coco
 import torchvision, os
 from torch.utils.data import DataLoader
 from PIL import Image, ImageDraw
+
 from transformers import AutoFeatureExtractor
 
 
@@ -156,6 +157,7 @@ class Detr(pl.LightningModule):
 model = Detr(lr=2.5e-5, weight_decay=1e-4)
 
 outputs = model(pixel_values=batch["pixel_values"])
+
 
 # %%
 
