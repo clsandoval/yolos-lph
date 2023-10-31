@@ -3,3 +3,4 @@ balloon_dataset/*
 __pycache__/*
 lightning_logs/
 yolos/*
+wandb/*
