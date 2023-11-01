@@ -154,12 +154,12 @@ def convert(
 
 
 if __name__ == "__main__":
-    input_dir = "data/val/*.png"
+    input_dir = "data/train/*.png"
     categories = ["plate"]
 
     super_categories = ["N/A"]
 
-    output_json = "data/coco_val.json"
+    output_json = "data/coco_train.json"
 
     coco_dict = convert(
         imgdir=input_dir,
