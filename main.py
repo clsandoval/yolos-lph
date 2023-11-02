@@ -1,14 +1,12 @@
-# %% h
-import numpy as np
-import convert as via2coco
-import torchvision, os
+import pytorch_lightning as pl
+import torch, torchvision, os
+from transformers import AutoModelForObjectDetection
 from torch.utils.data import DataLoader
-from PIL import Image, ImageDraw
-
 from transformers import AutoFeatureExtractor
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning import Trainer
 
 
-# create dataloaders
 first_class_index = 0
 
 
@@ -44,33 +42,6 @@ val_dataset = CocoDetection(
     img_folder="", feature_extractor=feature_extractor, train=False
 )
 
-# %% visualize sample images
-
-# based on https://github.com/woctezuma/finetune-detr/blob/master/finetune_detr.ipynb
-image_ids = train_dataset.coco.getImgIds()
-# let's pick a random image
-image_id = image_ids[np.random.randint(0, len(image_ids))]
-print("Image n°{}".format(image_id))
-image = train_dataset.coco.loadImgs(image_id)[0]
-image = Image.open(image["file_name"])
-
-annotations = train_dataset.coco.imgToAnns[image_id]
-draw = ImageDraw.Draw(image, "RGBA")
-
-cats = train_dataset.coco.cats
-id2label = {k: v["name"] for k, v in cats.items()}
-
-for annotation in annotations:
-    box = annotation["bbox"]
-    class_idx = annotation["category_id"]
-    x, y, w, h = tuple(box)
-    draw.rectangle((x, y, x + w, y + h), outline="red", width=1)
-    draw.text((x, y), id2label[class_idx], fill="white")
-
-image
-
-# %% create dataloaders with proper config
-
 
 def collate_fn(batch):
     pixel_values = [item[0] for item in batch]
@@ -95,12 +66,6 @@ val_dataloader = DataLoader(
     batch_size=1,
     num_workers=8,
 )
-batch = next(iter(train_dataloader))
-
-# %%
-import pytorch_lightning as pl
-from transformers import DetrConfig, AutoModelForObjectDetection
-import torch
 
 
 class Detr(pl.LightningModule):
@@ -108,7 +73,7 @@ class Detr(pl.LightningModule):
         super().__init__()
         # replace COCO classification head with custom head
         self.model = AutoModelForObjectDetection.from_pretrained(
-            "hustvl/yolos-small", num_labels=len(id2label), ignore_mismatched_sizes=True
+            "hustvl/yolos-small", num_labels=len(2), ignore_mismatched_sizes=True
         )
         # see https://github.com/PyTorchLightning/pytorch-lightning/pull/1896
         self.lr = lr
@@ -162,18 +127,13 @@ class Detr(pl.LightningModule):
         return val_dataloader
 
 
-# %% create model and sample inference
 checkpoint = False
 if not checkpoint:
     model = Detr(lr=2.5e-5, weight_decay=1e-4)
-    outputs = model(pixel_values=batch["pixel_values"])
 else:
     model = Detr.load_from_checkpoint(
         "lightning_logs/m4r7ybn4/checkpoints/epoch=32-step=13068.ckpt"
     )
-# %%
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
 
 torch.set_float32_matmul_precision("medium")
 wandb_logger = WandbLogger(log_model="all")
@@ -185,46 +145,3 @@ trainer = Trainer(
     logger=wandb_logger,
 )
 trainer.fit(model)
-
-# %% get ground truths
-
-from datasets import get_coco_api_from_dataset
-
-base_ds = get_coco_api_from_dataset(val_dataset)
-
-# %%
-from datasets.coco_eval import CocoEvaluator
-from tqdm.notebook import tqdm
-
-iou_types = ["bbox"]
-coco_evaluator = CocoEvaluator(
-    base_ds, iou_types
-)  # initialize evaluator with ground truths
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-model.to(device)
-model.eval()
-
-print("Running evaluation...")
-
-for idx, batch in enumerate(tqdm(val_dataloader)):
-    # get the inputs
-    pixel_values = batch["pixel_values"].to(device)
-    labels = [
-        {k: v.to(device) for k, v in t.items()} for t in batch["labels"]
-    ]  # these are in DETR format, resized + normalized
-
-    # forward pass
-    outputs = model.model(pixel_values=pixel_values)
-
-    orig_target_sizes = torch.stack([target["orig_size"] for target in labels], dim=0)
-    results = feature_extractor.post_process(
-        outputs, orig_target_sizes
-    )  # convert outputs of model to COCO api
-    res = {target["image_id"].item(): output for target, output in zip(labels, results)}
-    coco_evaluator.update(res)
-
-coco_evaluator.synchronize_between_processes()
-coco_evaluator.accumulate()
-coco_evaluator.summarize()
