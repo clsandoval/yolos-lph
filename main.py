@@ -73,7 +73,7 @@ class Detr(pl.LightningModule):
         super().__init__()
         # replace COCO classification head with custom head
         self.model = AutoModelForObjectDetection.from_pretrained(
-            "hustvl/yolos-small", num_labels=len(2), ignore_mismatched_sizes=True
+            "hustvl/yolos-small", num_labels=(2), ignore_mismatched_sizes=True
         )
         # see https://github.com/PyTorchLightning/pytorch-lightning/pull/1896
         self.lr = lr
@@ -132,7 +132,7 @@ if not checkpoint:
     model = Detr(lr=2.5e-5, weight_decay=1e-4)
 else:
     model = Detr.load_from_checkpoint(
-        "lightning_logs/m4r7ybn4/checkpoints/epoch=32-step=13068.ckpt"
+        "lightning_logs/ah3tht3j/checkpoints/epoch=71-step=28512.ckpt"
     )
 
 torch.set_float32_matmul_precision("medium")

@@ -19,7 +19,7 @@ frame_counter = 0
 while cap.isOpened():
     frame_counter += 1
     ret, frame = cap.read()
-    if frame_counter % 5 == 0:
+    if frame_counter % 60 == 0:
         img_tensor = transform(frame).to(device).unsqueeze(0)
         outputs = model(img_tensor)
         probs = outputs.logits.softmax(-1)[0, :, :-1]
